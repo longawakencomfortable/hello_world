@@ -57,7 +57,8 @@
     <div id="ui">
         시간: <span id="time">40</span>초<br>
         점수: <span id="score">0</span><br>
-        생명: <span id="lives">❤️❤️❤️</span>
+        생명: <span id="lives">❤️❤️❤️</span><br>
+        <span id="speedStatus" style="font-size: 18px; color: #f1c40f;"></span>
     </div>
     
     <div id="gameOver">
@@ -74,6 +75,7 @@
         const scoreElement = document.getElementById('score');
         const livesElement = document.getElementById('lives');
         const timeElement = document.getElementById('time');
+        const speedStatusElement = document.getElementById('speedStatus');
         const gameOverScreen = document.getElementById('gameOver');
         const endMessageElement = document.getElementById('endMessage');
         const finalScoreElement = document.getElementById('finalScore');
@@ -95,6 +97,7 @@
         let timeLeft = 40;
         let isGameOver = false;
         let lastEatenColor = null;
+        let colorHistory = []; // 최근 먹은 색상을 기록
 
         const keys = {
             ArrowUp: false,
@@ -111,17 +114,17 @@
             if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
         });
 
+        const baseSpeed = 8;
         const player = {
             x: 150,
             y: canvas.height / 2,
             radius: 25,
-            speed: 8 // 캐릭터 이동 속도 소폭 증가
+            speed: baseSpeed
         };
 
         const candies = [];
         let frameCount = 0;
 
-        // 1초마다 시간 감소
         const timerInterval = setInterval(() => {
             if (!isGameOver) {
                 timeLeft--;
@@ -195,39 +198,100 @@
         }
 
         function handleCandies() {
-            // 화면 이동 속도 증가에 맞춰 생성 주기를 짧게 조정 (기존 40 -> 20)
             if (frameCount % 20 === 0) {
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                candies.push({
-                    x: canvas.width + 30,
-                    y: Math.random() * (canvas.height - 60) + 30,
-                    radius: 15,
-                    speed: Math.random() * 5 + 7, // 속도 대폭 증가 (기존 3~6 -> 7~12)
-                    colorInfo: randomColor
-                });
+                const isWhite = Math.random() < 0.08; // 8% 확률로 하얀색 망각의 사탕 생성
+                
+                if (isWhite) {
+                    candies.push({
+                        x: canvas.width + 30,
+                        y: Math.random() * (canvas.height - 60) + 30,
+                        radius: 15,
+                        speed: Math.random() * 5 + 7,
+                        type: 'white',
+                        isBlinking: false
+                    });
+                } else {
+                    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                    const isBlinking = Math.random() < 0.3; // 30% 확률로 시야 교란 사탕
+                    
+                    candies.push({
+                        x: canvas.width + 30,
+                        y: Math.random() * (canvas.height - 60) + 30,
+                        radius: 15,
+                        speed: Math.random() * 5 + 7,
+                        type: 'color',
+                        colorInfo: randomColor,
+                        isBlinking: isBlinking
+                    });
+                }
             }
 
             for (let i = candies.length - 1; i >= 0; i--) {
                 const candy = candies[i];
                 candy.x -= candy.speed;
 
-                drawStar(candy.x, candy.y, 5, candy.radius, candy.radius / 2, candy.colorInfo.code);
+                let drawColor;
+                if (candy.type === 'white') {
+                    drawColor = 'rgba(255, 255, 255, 0.8)';
+                } else {
+                    drawColor = candy.colorInfo.code;
+                    // 주기적으로 잿빛으로 변하며 깜빡임 연출
+                    if (candy.isBlinking && frameCount % 60 < 30) {
+                        drawColor = 'rgba(150, 150, 150, 0.3)';
+                    }
+                }
+
+                drawStar(candy.x, candy.y, 5, candy.radius, candy.radius / 2, drawColor);
 
                 const dx = player.x - candy.x;
                 const dy = player.y - candy.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
                 if (distance < player.radius + candy.radius - 5) {
-                    if (lastEatenColor && lastEatenColor.comp === candy.colorInfo.name) {
-                        lives--;
-                        updateLivesDisplay();
-                        if (lives <= 0) endGame("생명 소진");
+                    if (candy.type === 'white') {
+                        // 순백의 망각 효과
+                        lastEatenColor = null;
+                        timeLeft += 3;
+                        timeElement.innerText = timeLeft;
+                        player.speed = baseSpeed;
+                        colorHistory = [];
+                        speedStatusElement.innerText = "기억의 소거";
+                        setTimeout(() => { if(speedStatusElement.innerText === "기억의 소거") speedStatusElement.innerText = ""; }, 1500);
+                        score += 300;
                     } else {
-                        score += 100;
-                        scoreElement.innerText = score;
+                        // 일반 별사탕 처리
+                        if (lastEatenColor && lastEatenColor.comp === candy.colorInfo.name) {
+                            lives--;
+                            updateLivesDisplay();
+                            player.speed = baseSpeed; // 피격 시 상태 초기화
+                            colorHistory = [];
+                            speedStatusElement.innerText = "";
+                            if (lives <= 0) endGame("생명 소진");
+                        } else {
+                            score += 100;
+                            colorHistory.push(candy.colorInfo.name);
+                            
+                            if (colorHistory.length === 3) {
+                                const [c1, c2, c3] = colorHistory;
+                                if (c1 === c2 && c2 === c3) {
+                                    // 3연속 같은 색상
+                                    player.speed = 4;
+                                    speedStatusElement.innerText = "과식: 속도 감소";
+                                    colorHistory = [];
+                                } else if (c1 !== c2 && c2 !== c3 && c1 !== c3) {
+                                    // 3연속 다른 색상
+                                    player.speed = 13;
+                                    speedStatusElement.innerText = "다채로움: 속도 증가";
+                                    colorHistory = [];
+                                } else {
+                                    colorHistory.shift();
+                                }
+                            }
+                        }
+                        lastEatenColor = candy.colorInfo;
                     }
                     
-                    lastEatenColor = candy.colorInfo;
+                    scoreElement.innerText = score;
                     candies.splice(i, 1);
                 } else if (candy.x < -30) {
                     candies.splice(i, 1);
