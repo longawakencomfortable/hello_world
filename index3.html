@@ -94,10 +94,10 @@
 
         let score = 0;
         let lives = 3;
-        let timeLeft = 40;
+        let timeLeft = 60;
         let isGameOver = false;
         let lastEatenColor = null;
-        let colorHistory = []; // 최근 먹은 색상을 기록
+        let colorHistory = []; 
 
         const keys = {
             ArrowUp: false,
@@ -199,7 +199,7 @@
 
         function handleCandies() {
             if (frameCount % 20 === 0) {
-                const isWhite = Math.random() < 0.08; // 8% 확률로 하얀색 망각의 사탕 생성
+                const isWhite = Math.random() < 0.08; 
                 
                 if (isWhite) {
                     candies.push({
@@ -212,7 +212,7 @@
                     });
                 } else {
                     const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                    const isBlinking = Math.random() < 0.3; // 30% 확률로 시야 교란 사탕
+                    const isBlinking = Math.random() < 0.3; 
                     
                     candies.push({
                         x: canvas.width + 30,
@@ -235,7 +235,6 @@
                     drawColor = 'rgba(255, 255, 255, 0.8)';
                 } else {
                     drawColor = candy.colorInfo.code;
-                    // 주기적으로 잿빛으로 변하며 깜빡임 연출
                     if (candy.isBlinking && frameCount % 60 < 30) {
                         drawColor = 'rgba(150, 150, 150, 0.3)';
                     }
@@ -249,7 +248,6 @@
 
                 if (distance < player.radius + candy.radius - 5) {
                     if (candy.type === 'white') {
-                        // 순백의 망각 효과
                         lastEatenColor = null;
                         timeLeft += 3;
                         timeElement.innerText = timeLeft;
@@ -259,11 +257,10 @@
                         setTimeout(() => { if(speedStatusElement.innerText === "기억의 소거") speedStatusElement.innerText = ""; }, 1500);
                         score += 300;
                     } else {
-                        // 일반 별사탕 처리
                         if (lastEatenColor && lastEatenColor.comp === candy.colorInfo.name) {
                             lives--;
                             updateLivesDisplay();
-                            player.speed = baseSpeed; // 피격 시 상태 초기화
+                            player.speed = baseSpeed; 
                             colorHistory = [];
                             speedStatusElement.innerText = "";
                             if (lives <= 0) endGame("생명 소진");
@@ -274,12 +271,10 @@
                             if (colorHistory.length === 3) {
                                 const [c1, c2, c3] = colorHistory;
                                 if (c1 === c2 && c2 === c3) {
-                                    // 3연속 같은 색상
                                     player.speed = 4;
                                     speedStatusElement.innerText = "과식: 속도 감소";
                                     colorHistory = [];
                                 } else if (c1 !== c2 && c2 !== c3 && c1 !== c3) {
-                                    // 3연속 다른 색상
                                     player.speed = 13;
                                     speedStatusElement.innerText = "다채로움: 속도 증가";
                                     colorHistory = [];
